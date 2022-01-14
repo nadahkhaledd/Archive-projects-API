@@ -1,12 +1,16 @@
 import pymysql
 from app import app
+from components.models import Project, Department, Asset
 from config import db
 from flask import jsonify
 from flask import flash, request
+import json
+
 
 @app.route('/')
 def start():
     return getAll()
+
 
 @app.errorhandler(404)
 def not_found(error=None):
@@ -14,9 +18,30 @@ def not_found(error=None):
         'status': 404,
         'message': 'Record not found: ' + request.url,
     }
-    respone = jsonify(message)
-    respone.status_code = 404
-    return respone
+    response = jsonify(message)
+    response.status_code = 404
+    return response
+
+
+def toJson(data):
+    projects = []
+    newData = []
+    for archive in data:
+        p = Project()
+        d = Department()
+        a = Asset()
+        a.fromJson(archive['asset.id'], archive['asset.name'])
+        d.fromJson(archive['department.id'], archive['department.name'], a)
+        p.fromJson(archive['id'], archive['name'], d)
+        projects.append(p)
+
+    for pr in projects:
+        newProject = dict({'id': pr.id, 'name': pr.name,
+                           'department': {'id': pr.department.id, 'name': pr.department.name,
+                                          'asset': {'id': pr.department.asset.id, 'name': pr.department.asset.name}}})
+        newData.append(newProject)
+
+    return newData
 
 
 @app.route('/archive', methods=['GET'])
@@ -26,14 +51,14 @@ def getAll():
     try:
         cursor = connection.cursor(pymysql.cursors.DictCursor)
         cursor.execute("SET FOREIGN_KEY_CHECKS=0")
-        cursor.execute("SELECT archives.project.id AS projectID, archives.project.name AS projectName,"
-                       "archives.department.id AS departmentID, archives.department.name AS departmentName,"
-                       " archives.department.assetID AS assetID, archives.asset.name AS assetName"
+        cursor.execute("SELECT Archives.project.*, Archives.department.*, Archives.asset.*"
                        " FROM Archives.department"
                        " JOIN Archives.project ON  archives.project.departmentID = archives.department.id "
                        "JOIN Archives.asset ON archives.department.assetID = archives.asset.id")
+
         data = cursor.fetchall()
-        response = jsonify(data)
+        newData = toJson(data)
+        response = jsonify(newData)
 
         response.status_code = 200
         return response
@@ -52,15 +77,15 @@ def getByID(id):
     try:
         cursor = connection.cursor(pymysql.cursors.DictCursor)
         cursor.execute("SET FOREIGN_KEY_CHECKS=0")
-        cursor.execute("SELECT archives.project.id AS projectID, archives.project.name AS projectName,"
-                       "archives.department.id AS departmentID, archives.department.name AS departmentName,"
-                       " archives.department.assetID AS assetID, archives.asset.name AS assetName"
-                       " FROM Archives.Project"
-                       " JOIN Archives.department ON  archives.project.departmentID = archives.department.id "
+        cursor.execute("SELECT Archives.project.*, Archives.department.*, Archives.asset.*"
+                       " FROM Archives.department"
+                       " JOIN Archives.project ON  archives.project.departmentID = archives.department.id "
                        "JOIN Archives.asset ON archives.department.assetID = archives.asset.id"
                        " WHERE archives.project.id = %s", id)
+
         data = cursor.fetchone()
-        response = jsonify(data)
+        newData = toJson([data])
+        response = jsonify(newData)
 
         response.status_code = 200
         return response
