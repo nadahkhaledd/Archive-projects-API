@@ -1,10 +1,11 @@
+from string import Template
+
 import pymysql
 from app import app
 from components.models import Project, Department, Asset
 from config import db
 from flask import jsonify
 from flask import flash, request
-import json
 
 
 @app.route('/')
@@ -84,7 +85,6 @@ def getByID(id):
                        " WHERE archives.project.id = %s", id)
 
         data = cursor.fetchone()
-        #print(data)
         hold = [data]
         newData = toJson(hold)
         response = jsonify(newData)
@@ -106,9 +106,7 @@ def post():
     try:
         _json = request.json
         _name = _json['name']
-        #_departmentID = _json['department']['id']
         _departmentName = _json['department']['name']
-        #_assetID = _json['department']['asset']['id']
         _assetName = _json['department']['asset']['name']
         cursor.execute("SET FOREIGN_KEY_CHECKS=0")
         if _name and _departmentName and _assetName and request.method == 'POST':
@@ -130,10 +128,6 @@ def post():
             bindData = (_name, int(_departmentID))
             cursor.execute(sqlQuery, bindData)
 
-
-
-
-
             connection.commit()
 
             response = jsonify('project added successfully!')
@@ -147,6 +141,29 @@ def post():
     finally:
         cursor.close()
         connection.close()
+
+
+@app.route('/archive/create/', methods=['POST'])
+def create():
+
+    try:
+        _json = request.json
+        _id = _json['id']
+        return getByID(_id)
+
+    except Exception as e:
+        print(e)
+
+
+@app.route('/archive/replicate/',  methods=['POST'])
+def replicate():
+    try:
+        response = post()
+        if response.status_code == 200:
+            return getAll()
+
+    except Exception as e:
+        print(e)
 
 
 if __name__ == "__main__":
