@@ -84,7 +84,9 @@ def getByID(id):
                        " WHERE archives.project.id = %s", id)
 
         data = cursor.fetchone()
-        newData = toJson([data])
+        #print(data)
+        hold = [data]
+        newData = toJson(hold)
         response = jsonify(newData)
 
         response.status_code = 200
@@ -104,23 +106,33 @@ def post():
     try:
         _json = request.json
         _name = _json['name']
-        _departmentID = _json['departmentID']
+        #_departmentID = _json['department']['id']
         _departmentName = _json['department']['name']
-        _assetID = _json['department']['assetID']
+        #_assetID = _json['department']['asset']['id']
         _assetName = _json['department']['asset']['name']
         cursor.execute("SET FOREIGN_KEY_CHECKS=0")
-        if _name and _departmentID and _departmentName and _assetID and _assetName and request.method == 'POST':
-            sqlQuery = "INSERT INTO archives.project(name, departmentID) VALUES(%s, %s)"
-            bindData = (_name, _departmentID)
-            cursor.execute(sqlQuery, bindData)
-
-            sqlQuery = "INSERT INTO archives.department(name, assetID) VALUES(%s, %s)"
-            bindData = (_departmentName, _assetID)
-            cursor.execute(sqlQuery, bindData)
-
+        if _name and _departmentName and _assetName and request.method == 'POST':
             sqlQuery = "INSERT INTO archives.asset(name) VALUES(%s)"
             bindData = _assetName
             cursor.execute(sqlQuery, bindData)
+            cursor.execute("SELECT archives.asset.id  FROM archives.asset WHERE archives.asset.name = %s", _assetName)
+            _assetID = cursor.fetchone()
+            _assetID = _assetID[0]
+
+            sqlQuery = "INSERT INTO archives.department(name, assetID) VALUES(%s, %s)"
+            bindData = (_departmentName, int(_assetID))
+            cursor.execute(sqlQuery, bindData)
+            cursor.execute("SELECT archives.department.id  FROM archives.department WHERE archives.department.name = %s", _departmentName)
+            _departmentID = cursor.fetchone()
+            _departmentID = _departmentID[0]
+
+            sqlQuery = "INSERT INTO archives.project(name, departmentID) VALUES(%s, %s)"
+            bindData = (_name, int(_departmentID))
+            cursor.execute(sqlQuery, bindData)
+
+
+
+
 
             connection.commit()
 
